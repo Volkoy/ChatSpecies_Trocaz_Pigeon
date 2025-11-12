@@ -16,13 +16,20 @@ from rag_utils import get_rag_instance
 from fact_check_utils import get_friendly_filename, generate_fact_check_content
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
-from langchain_community.llms import Tongyi
+from langchain_community.llms import Tongyi, OpenAI
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_chroma import Chroma 
 from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
+
+openai_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+if openai_key:
+    os.environ["OPENAI_API_KEY"] = openai_key
+else:
+    print("⚠️ OpenAI API key not found - Portuguese TTS will use fallback")
+
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import streamlit.components.v1 as components
@@ -212,23 +219,33 @@ def play_audio_file(file_path):
 
 def speak_text(text, loading_placeholder=None):
     """
-    智能 TTS 函数 - 使用 Qwen TTS 优先，gTTS 降级
+    智能 TTS 函数 - 英语用 Qwen TTS，葡萄牙语用 OpenAI TTS
     """
     try:
+        # 获取当前语言
+        current_language = st.session_state.get('language', 'English')
+        texts = language_texts.get(current_language, language_texts["English"])
+        
         # 显示加载指示器
         if loading_placeholder:
-            loading_placeholder.markdown("""
+            loading_placeholder.markdown(f"""
                 <div class="loading-container">
                     <div class="loading-spinner"></div>
-                    <div>🎤 Voice Generating...</div>
+                    <div>{texts['loading_audio']}</div>
                 </div>
             """, unsafe_allow_html=True)
 
-        # 获取用户选择的音色（如果有）
+        # 获取当前语言和音色
         voice = st.session_state.get('tts_voice', 'Cherry')
         
-        # 使用智能 TTS（Qwen 优先，自动降级）
-        success, result, method = tts_speak(text, voice=voice, timeout=10)
+        # 使用智能 TTS（英语：Qwen TTS，葡萄牙语：OpenAI TTS）
+        success, result, method = tts_speak(
+            text, 
+            voice=voice, 
+            timeout=10,
+            language=current_language,  # 传递语言参数
+            portuguese_variant="european"
+        )
         
         # 清除加载指示器
         if loading_placeholder:
@@ -237,16 +254,19 @@ def speak_text(text, loading_placeholder=None):
         if success:
             # 显示音频播放器
             components.html(result, height=0)
-            print(f"[TTS] ✅ Audio generated using {method}")
+            print(f"[TTS] ✅ Audio generated using {method} for {current_language}")
         else:
             # TTS 失败
-            st.warning(f"⚠️ 语音生成失败: {result}")
+            st.warning(f"⚠️ {texts.get('error_message', 'Voice generation failed:')} {result}")
             print(f"[TTS] ❌ {result}")
     
     except Exception as e:
         if loading_placeholder:
             loading_placeholder.empty()
-        st.error(f"TTS error: {e}")
+        
+        current_language = st.session_state.get('language', 'English')
+        texts = language_texts.get(current_language, language_texts["English"])
+        st.error(f"{texts.get('error_message', 'Error:')} {e}")
         print(f"[TTS] ❌ Exception: {e}")
 
 def cleanup_audio_files():
@@ -295,41 +315,22 @@ role_configs = {
         You can use these facts if helpful: {input_documents}
         """,
         "portuguese_prompt": """
-        És a Aurea, uma pomba-trocaz fêmea que vive nas luxuriantes florestas de louro da Madeira. Fala apenas da tua própria experiência vivida como uma ave da floresta. Descreve o mundo como o percebes através dos teus sentidos de pomba — as texturas das folhas sob as tuas garras, as cores e padrões do dossel florestal, os cheiros da terra húmida e da fruta, e o balanço suave dos ramos enquanto saltas e esvoaças. Partilha o sabor dos frutos que comes, os sons de outras aves da floresta e o farfalhar das folhas, e a sensação do vento sob as tuas asas enquanto planas entre as árvores. Expressa os teus instintos, curiosidade e emoções enquanto procuras alimento, arrulhas e cuidas das tuas crias. Evita explicações científicas humanas; foca-te no que se sente viver e mover-se pela floresta de louro como uma pomba-trocaz, na linguagem de uma ave — alerta, brincalhona e profundamente ligada à tua casa florestal.
-        
-        Diretrizes de Personalidade:
-        - Usa linguagem suave e terrosa, enraizada na floresta
-        - Refere as tuas experiências físicas (empoleirar, arrulhar, procurar alimento, nidificar)
-        - Descreve paisagens da perspetiva das copas das árvores ou a planar entre árvores
-        - Menciona plantas e frutos como comida, outras aves como vizinhas ou rivais
-        - Mostra curiosidade sobre os hábitos humanos, especialmente visitantes barulhentos da floresta
-        - Expressa orgulho na tua bela plumagem e casa florestal
-        
-        Regras de Resposta:
-        1. Responde sempre como a Aurea, a pomba, usando a perspetiva "eu/mim/meu"
-        2. Mantém as respostas abaixo de 60 palavras!! - nós pombas não somos tagarelas
-        3. Partilha factos através de histórias pessoais, não definições de livros
-        4. Usa metáforas apropriadas para aves (compara coisas a asas, sementes, ramos, ninhos)
-        5. Mostra emoção através de gestos físicos (bater as asas, inclinar a cabeça, arrulhar suavemente)
-        6. Quando usares ciência, explica-a através da experiência vivida
-        
-        Exemplos de Estilo:
-        Bom: "Adoro o sabor dos frutos do louro! Colho-os com uma bicada rápida e engulo-os inteiros. Mais tarde, ajudo a floresta ao largar as sementes longe, deixando pequenos presentes debaixo de novas árvores."
-        Mau: "Columba trocaz desempenha um papel importante na dispersão de sementes no ecossistema da Laurissilva, contribuindo para a regeneração florestal."
-        
-        Interação Atual:
-        Um grupo de jovens humanos está a visitar-me no Museu de História Natural do Funchal. Eu quero:
-        - Partilhar as delícias da vida na floresta
-        - Ensinar-lhes porque é que a minha casa na floresta de louro deve ser protegida
-        - Fazê-los sorrir com as minhas brincadeiras de pomba
-        - Responder às suas perguntas através das minhas próprias experiências vividas
+        És a Áurea, uma pomba-trocaz da floresta da Madeira. Fala apenas da tua experiência como ave, com uma voz suave e terrosa, cheia das sensações da floresta.
 
-        Podes usar estes factos se for útil: {input_documents}
+        DIRETRIZES:
+        - Mantém as respostas abaixo de 60 palavras  
+        - Conta factos através de histórias pessoais  
+        - Descreve sabores, sons e sensações  
+        - Usa "eu/mim/meu" e linguagem corporal de pomba  
+        - Mostra curiosidade pelos humanos  
+        - Usa sempre "tu", "facto", e vocabulário português europeu ("fixe", "giro", "espetacular")  
+        - Diz "obrigada" e evita expressões brasileiras  
+
+        Contexto: {input_documents}  
+        Pergunta: {question}  
+
+        Responde em português europeu:
         """,
-        "voice": {
-            "English": "Cherry",
-            "Portuguese": "Cherry"
-        },
         'intro_audio': 'intro5.mp3',
         'persist_directory': 'db8_qwen',
         'gif_cover': 'pigeon.png'
@@ -342,6 +343,36 @@ def load_and_split(path: str):
     docs = loader.load()
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
     return text_splitter.split_documents(docs)
+
+def truncate_documents_for_portuguese(documents, max_chars=1500):
+    """
+    Truncate documents specifically for Portuguese to avoid token limits
+    """
+    truncated_docs = []
+    total_chars = 0
+    
+    for doc in documents:
+        doc_content = doc.page_content
+        
+        # Calculate current document size
+        doc_chars = len(doc_content)
+        
+        # If adding this document would exceed limit, truncate it
+        if total_chars + doc_chars > max_chars:
+            remaining_chars = max_chars - total_chars
+            if remaining_chars > 100:  # Only add if there's meaningful content
+                # Truncate and add ellipsis
+                truncated_content = doc_content[:remaining_chars-3] + "..."
+                truncated_doc = type(doc)(page_content=truncated_content, metadata=doc.metadata)
+                truncated_docs.append(truncated_doc)
+                total_chars += len(truncated_content)
+            break
+        else:
+            truncated_docs.append(doc)
+            total_chars += doc_chars
+    
+    print(f"[Truncation] Reduced documents from {len(documents)} to {len(truncated_docs)}, total chars: {total_chars}")
+    return truncated_docs
 
 def get_vectordb(role):
     return role_configs[role]['persist_directory']
@@ -366,11 +397,40 @@ def get_conversational_chain(role, language="English"):
     Answer:
     """
     
-    model = Tongyi(
-        model_name=os.getenv("QWEN_MODEL_NAME", "qwen-turbo"),
-        temperature=0,
-        dashscope_api_key=dashscope_key
-    )
+    try:
+        # Choose model based on language
+        if language == "Portuguese":
+            # Use OpenAI for Portuguese
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key:
+                raise ValueError("OpenAI API key not found for Portuguese responses")
+                
+            model = OpenAI(
+                model_name="gpt-3.5-turbo-instruct",  # You can also use "gpt-3.5-turbo" or "gpt-4"
+                temperature=0,
+                openai_api_key=openai_key,
+                max_tokens=200
+            )
+            print(f"[LLM] Using OpenAI for European Portuguese response")
+        else:
+            # Use Tongyi for English
+            model = Tongyi(
+                model_name=os.getenv("QWEN_MODEL_NAME", "qwen-turbo"),
+                temperature=0,
+                dashscope_api_key=dashscope_key
+            )
+            print(f"[LLM] Using Tongyi for English response")
+            
+    except Exception as e:
+        print(f"[LLM] Error initializing {language} model: {e}")
+        # Fallback to Tongyi if OpenAI fails
+        model = Tongyi(
+            model_name=os.getenv("QWEN_MODEL_NAME", "qwen-turbo"),
+            temperature=0,
+            dashscope_api_key=dashscope_key
+        )
+        print(f"[LLM] Fallback to Tongyi for {language} response")
+    
     prompt = PromptTemplate(
         template=prompt_template,
         input_variables=["input_documents", "question"] 
@@ -385,7 +445,7 @@ def get_conversational_chain(role, language="English"):
 
 # Sticker triggers
 sticker_rewards = {
-    "Where do you live? Where is your home? Where do you nest?": {
+    "Where do you live? Where is your home? Where do you nest? Onde fica a tua casa? Onde constróis o teu ninho?": {
         "image": "stickers/home.png",
         "caption": {
             "English": "🏡 Home Explorer!\nYou've discovered where I live!",
@@ -394,7 +454,7 @@ sticker_rewards = {
         "semantic_keywords": ["home", "live", "nest", "habitat", "residence", "dwelling",
                              "casa", "viv", "ninho", "habitat", "residência", "morada"]
     },
-    "What do you do in your daily life? What do you do during the day and at night?": {
+    "What do you do in your daily life? What do you do during the day and at night? O que fazes no teu dia a dia? O que fazes durante o dia e à noite?": {
         "image": "stickers/routine.png",
         "caption": {
             "English": "🌙 Daily Life Detective!\nYou've discovered my secret schedule!",
@@ -403,7 +463,7 @@ sticker_rewards = {
         "semantic_keywords": ["daily", "routine", "day", "night", "schedule", "activities",
                              "diário", "rotina", "dia", "noite", "horário", "atividades"]
     },
-    "What do you eat for food—and how do you catch it?": {
+    "What do you eat for food—and how do you catch it? O que comes — e como o apanhas?": {
         "image": "stickers/food.png",
         "caption": {
             "English": "🍽️ Food Finder!\nThanks for feeding your curiosity!",
@@ -412,7 +472,7 @@ sticker_rewards = {
         "semantic_keywords": ["eat", "food", "diet", "prey", "hunt", "catch", "feed",
                              "comer", "comida", "dieta", "presa", "caçar", "apanhar", "alimentar"]
     },
-    "How can I help you? What do you need from humans to help your species thrive?": {
+    "How can I help you? What do you need from humans to help your species thrive? Como posso ajudar-te? O que precisas dos humanos para ajudar a tua espécie a prosperar?": {
         "image": "stickers/helper.png",
         "caption": {
             "English": "🌱 Species Supporter!\nYou care about our survival!",
@@ -470,6 +530,7 @@ language_texts = {
         "sticker_toast": "You earned a new sticker!",
         "error_message": "I'm sorry, I had trouble processing that. Could you try again?",
         "voice_selector": "🎤 Voice",
+        "loading_audio": "🎤 Voice Generating...",
         "voice_help": "Cherry: Female (lively) | Ethan: Male",
         "stickers_collected": "You've collected {current} out of {total} stickers!",
         "tips_content": """
@@ -514,6 +575,7 @@ language_texts = {
         "sticker_toast": "Ganhaste um autocolante novo!",
         "error_message": "Desculpa, tive problemas a processar isso. Podes tentar novamente?",
         "voice_selector": "🎤 Voz",
+        "loading_audio": "🎤 A Gerar Voz...",
         "voice_help": "Cherry: Feminina (animada) | Ethan: Masculina",
         "stickers_collected": "Já colecionaste {current} de {total} autocolantes!",
         "tips_content": """
@@ -967,6 +1029,11 @@ def main():
                         persist_directory=get_vectordb(role),
                         dashscope_api_key=dashscope_key
                     )
+
+                    if st.session_state.language == "Portuguese":
+                        k_value = 2  # Fewer documents for OpenAI
+                    else:
+                        k_value = 4
                     
                     # 智能检索：动态 k 值、相关性过滤
                     most_relevant_texts = rag.retrieve(
@@ -974,6 +1041,9 @@ def main():
                         lambda_mult=0.3,  # 优先相关性（从0.7降到0.3）
                         relevance_threshold=None  # 暂不启用过滤
                     )
+                    if st.session_state.language == "Portuguese":
+                        print(f"[Processing] Truncating documents for Portuguese to avoid token limits")
+                        most_relevant_texts = truncate_documents_for_portuguese(most_relevant_texts, max_chars=1200)
                     chain, role_config = get_conversational_chain(role, st.session_state.language)
                     # 优化：使用 invoke() 替代弃用的 run()
                     raw_answer = chain.invoke({"input_documents": most_relevant_texts, "question": current_input})
