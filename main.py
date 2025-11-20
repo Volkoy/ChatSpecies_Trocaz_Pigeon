@@ -1,6 +1,6 @@
 import sys
 import os
-# import pysqlite3  # Windows/Conda 环境不需要
+# import pysqlite3  # Windows/Conda environment not required
 # sys.modules["sqlite3"] = pysqlite3
 from gtts import gTTS
 from pydub import AudioSegment
@@ -21,7 +21,7 @@ from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_chroma import Chroma 
 from dotenv import load_dotenv
 
-# 加载环境变量
+# Load Environment Variables
 load_dotenv()
 
 openai_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
@@ -85,7 +85,7 @@ def log_interaction(user_input, ai_response, intimacy_score, is_sticker_awarded,
         print(f"❌ Failed to log interaction: {e}")
         return False
 
-# 配置 Qwen API Key
+# Configure Qwen API Key
 dashscope_key = os.getenv("DASHSCOPE_API_KEY") or st.secrets.get("DASHSCOPE_API_KEY")
 os.environ["DASHSCOPE_API_KEY"] = dashscope_key
 
@@ -155,14 +155,14 @@ def update_intimacy_score(response_text):
     For each criterion, answer: Does the response align? Answer with 'yes' or 'no', and provide reasoning.
     """
     
-    # 优化：合并两次评分为一次调用，提升速度
+    # Optimization: Merge two scoring operations into a single call to improve speed.
     model_scoring = Tongyi(
         model_name=os.getenv("QWEN_MODEL_NAME", "qwen-turbo"),
         temperature=0.1,
         dashscope_api_key=dashscope_key
     )
     
-    # 合并 prompt
+    # Merge prompt
     combined_prompt = f"""
     Analyze the following response and evaluate it against TWO sets of criteria:
     
@@ -178,7 +178,7 @@ def update_intimacy_score(response_text):
     Format: criterion_name: yes/no
     """
     
-    # 使用 invoke() 替代弃用的 __call__()
+    # Use invoke() instead of the deprecated __call__()
     combined_evaluation = model_scoring.invoke(combined_prompt)
     evaluation_positive = combined_evaluation
     evaluation_negative = combined_evaluation
@@ -219,14 +219,14 @@ def play_audio_file(file_path):
 
 def speak_text(text, loading_placeholder=None):
     """
-    智能 TTS 函数 - 英语用 Qwen TTS，葡萄牙语用 OpenAI TTS
+    Smart TTS Function - English uses Qwen TTS, Portuguese uses OpenAI or Microsoft Azure TTS
     """
     try:
-        # 获取当前语言
+        # Get the current language
         current_language = st.session_state.get('language', 'English')
         texts = language_texts.get(current_language, language_texts["English"])
         
-        # 显示加载指示器
+        # Display loading indicator
         if loading_placeholder:
             loading_placeholder.markdown(f"""
                 <div class="loading-container">
@@ -235,28 +235,28 @@ def speak_text(text, loading_placeholder=None):
                 </div>
             """, unsafe_allow_html=True)
 
-        # 获取当前语言和音色
+        # Get Current Language and Voice
         voice = st.session_state.get('tts_voice', 'Cherry')
         
-        # 使用智能 TTS（英语：Qwen TTS，葡萄牙语：OpenAI TTS）
+        # Using Smart TTS (English: Qwen TTS, Portuguese: OpenAI or Microsoft Azure TTS)
         success, result, method = tts_speak(
             text, 
             voice=voice, 
             timeout=10,
-            language=current_language,  # 传递语言参数
+            language=current_language,  # Passing Language Parameters
             portuguese_variant="european"
         )
         
-        # 清除加载指示器
+        # Clear the loading indicator
         if loading_placeholder:
             loading_placeholder.empty()
         
         if success:
-            # 显示音频播放器
+            # Display Audio Player
             components.html(result, height=0)
             print(f"[TTS] ✅ Audio generated using {method} for {current_language}")
         else:
-            # TTS 失败
+            # TTS failure
             st.warning(f"⚠️ {texts.get('error_message', 'Voice generation failed:')} {result}")
             print(f"[TTS] ❌ {result}")
     
@@ -270,7 +270,7 @@ def speak_text(text, loading_placeholder=None):
         print(f"[TTS] ❌ Exception: {e}")
 
 def cleanup_audio_files():
-    """清理临时音频文件"""
+    """Clean up temporary audio files"""
     tts_cleanup()
 
 def get_base64(file_path):
@@ -485,7 +485,7 @@ sticker_rewards = {
 
 def semantic_match(user_input, question_key, reward_details):
     """
-    优化后的语义匹配：使用 invoke() 替代弃用的 __call__()
+    Optimized semantic matching: Use invoke() instead of the deprecated __call__()
     """
     prompt = f"""
     Analyze whether the following two questions are similar in meaning:
@@ -499,7 +499,7 @@ def semantic_match(user_input, question_key, reward_details):
     Are these questions essentially asking the same thing? Respond only with 'yes' or 'no'.
     """
     
-    # 优化：使用 invoke() 替代弃用的 __call__()
+    # Optimization: Use invoke() instead of the deprecated __call__()
     response = semantic_model.invoke(prompt)
     return response.strip().lower() == 'yes'
 
@@ -658,7 +658,7 @@ def main():
             background: #ede7e2;
         }
         
-        /* 响应式字体大小 */
+        /* Responsive Font Size */
         @media (max-width: 768px) {
             .responsive-title {
                 font-size: 2rem !important;
@@ -704,45 +704,42 @@ def main():
 
         /* Chat input text and placeholder styling */
         .stChatInput input::placeholder {
-            color: #af9b8a !important; /* 灰粉色 */
+            color: #af9b8a !important; 
             opacity: 1 !important;
             font-size: 16px;
         }
 
         .stChatInput textarea::placeholder {
-            color: #af9b8a !important; /* 灰粉色 */
+            color: #af9b8a !important; 
             opacity: 1 !important;
             font-size: 16px;
         }
 
         .stChatInput input {
-            color: #b56a2a !important; /* 棕色文字 */
+            color: #b56a2a !important;
             font-size: 16px;
             caret-color: #af9b8a !important;
         }
 
         .stChatInput textarea {
-            color: #b56a2a !important; /* 棕色文字 */
+            color: #b56a2a !important; 
             font-size: 16px;
             caret-color: #af9b8a !important;
         }
         
-        /* 聊天输入框样式 */
         .stChatInput > div {
-            border-color: #af9b8a !important; /* 灰粉色边框 */
+            border-color: #af9b8a !important; 
             background-color: white !important;
             border-radius: 20px !important;
         }
         
-        /* 输入框内部背景色 */
         .stChatInput input, .stChatInput textarea {
             background-color: white !important;
             color: #b56a2a !important;
         }
         
-        /* 输入框聚焦状态 */
         .stChatInput div[data-testid="stChatInput"]:focus-within {
-            border-color: #a1b065 !important; /* 绿色焦点 */
+            border-color: #a1b065 !important; 
             box-shadow: 0 0 0 2px rgba(161, 176, 101, 0.3) !important;
         }
         
@@ -811,7 +808,7 @@ def main():
         }
 
         [class*="st-key-assistant"] {
-            background-color: #af9b8a; /* 灰粉色 */
+            background-color: #af9b8a; 
             border-radius: 16px 16px 16px 0;
             padding-right: 16px;
             border-color: white !important;
@@ -839,7 +836,7 @@ def main():
         /* Remove red border outline from chat input when active */
         .stChatInput div[data-testid="stChatInput"] > div:focus-within {
             box-shadow: none !important;
-            border-color: #a1b065 !important; /* 绿色 */
+            border-color: #a1b065 !important;
             border-width: 1px !important;
         }
         
@@ -858,20 +855,20 @@ def main():
         [data-testid="stChatInput"] input:focus {
             box-shadow: none !important;
             outline: none !important;
-            border-color: #a1b065 !important; /* 绿色 */
+            border-color: #a1b065 !important;
         }
         
         [data-testid="stChatInput"] textarea:focus {
             box-shadow: none !important;
             outline: none !important;
-            border-color: #a1b065 !important; /* 绿色 */
+            border-color: #a1b065 !important; 
         }
         button[kind="primary"] {
-            background-color: #756f6c; /* 深灰色 */
+            background-color: #756f6c;
             border: 0;
         }
         button[kind="primary"]:hover {
-            background-color: #af9b8a; /* 灰粉色悬停 */
+            background-color: #af9b8a; 
             border: 0;
         }
         button[kind="secondary"] {
@@ -888,7 +885,7 @@ def main():
         }
         .sticker-reward {
             background-color: transparent;
-            border: 2px solid #af9b8a; /* 灰粉色边框 */
+            border: 2px solid #af9b8a; 
             border-radius: 10px;
             padding: 10px;
             text-align: center;
@@ -944,7 +941,7 @@ def main():
         }
         .loading-spinner {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #a1b065; /* 绿色加载动画 */
+            border-top: 3px solid #a1b065; 
             border-radius: 50%;
             width: 20px;
             height: 20px;
@@ -1024,7 +1021,7 @@ def main():
                 
                 # Process response
                 try:
-                    # 使用优化的 RAG 检索器（带缓存）
+                    # Using an Optimized RAG Retriever (with Caching)
                     rag = get_rag_instance(
                         persist_directory=get_vectordb(role),
                         dashscope_api_key=dashscope_key
@@ -1035,19 +1032,19 @@ def main():
                     else:
                         k_value = 4
                     
-                    # 智能检索：动态 k 值、相关性过滤
+                    # Intelligent Retrieval: Dynamic K-Value, Relevance Filtering
                     most_relevant_texts = rag.retrieve(
                         query=current_input,
-                        lambda_mult=0.3,  # 优先相关性（从0.7降到0.3）
-                        relevance_threshold=None  # 暂不启用过滤
+                        lambda_mult=0.3,  # Priority Correlation (Decreased from 0.7 to 0.3)
+                        relevance_threshold=None  # Filter disabled for now
                     )
                     if st.session_state.language == "Portuguese":
                         print(f"[Processing] Truncating documents for Portuguese to avoid token limits")
                         most_relevant_texts = truncate_documents_for_portuguese(most_relevant_texts, max_chars=1200)
                     chain, role_config = get_conversational_chain(role, st.session_state.language)
-                    # 优化：使用 invoke() 替代弃用的 run()
+                    # Optimization: Use invoke() instead of the deprecated run()
                     raw_answer = chain.invoke({"input_documents": most_relevant_texts, "question": current_input})
-                    # 处理 invoke() 返回的字典格式
+                    # Handling the dictionary format returned by invoke()
                     answer_text = raw_answer.get("output_text", raw_answer) if isinstance(raw_answer, dict) else raw_answer
                     answer = re.sub(r'^\s*Answer:\s*', '', answer_text).strip()
                     st.session_state.last_answer = answer
@@ -1112,18 +1109,18 @@ def main():
 
     with right_col:
         # Language switcher
-        st.markdown("**Language / Idioma:**")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🇬🇧 English", use_container_width=True, 
-                        type="primary" if st.session_state.language == "English" else "secondary"):
-                st.session_state.language = "English"
-                st.rerun()
-        with col2:
-            if st.button("🇵🇹 Português", use_container_width=True,
-                        type="primary" if st.session_state.language == "Portuguese" else "secondary"):
-                st.session_state.language = "Portuguese"
-                st.rerun()
+        # st.markdown("**Language / Idioma:**")
+        # col1, col2 = st.columns(2)
+        # with col1:
+        #     if st.button("🇬🇧 English", use_container_width=True, 
+        #                 type="primary" if st.session_state.language == "English" else "secondary"):
+        #         st.session_state.language = "English"
+        #         st.rerun()
+        # with col2:
+        #     if st.button("🇵🇹 Português", use_container_width=True,
+        #                 type="primary" if st.session_state.language == "Portuguese" else "secondary"):
+        #         st.session_state.language = "Portuguese"
+        #         st.rerun()
         
         # Tips and Clear buttons
         input_section_col1, input_section_col2 = st.columns([0.35, 0.65], gap="small")
@@ -1253,7 +1250,7 @@ def main():
         
         with st.expander(texts['fact_check'], expanded=False):
             if "most_relevant_texts" in st.session_state and "last_question" in st.session_state and "last_answer" in st.session_state:
-                # 生成智能摘要（替代原始文档内容）
+                # Generate Intelligent Summary (Replacing Original Document Content)
                 if len(st.session_state.most_relevant_texts) > 0:
                     try:
                         fact_check_summary = generate_fact_check_content(
@@ -1263,7 +1260,6 @@ def main():
                             language=st.session_state.language
                         )
                         
-                        # 使用容器样式包裹 Markdown 内容
                         st.markdown("""
                             <style>
                             .fact-check-box {
@@ -1283,15 +1279,14 @@ def main():
                             }
                             </style>
                         """, unsafe_allow_html=True)
-                        
-                        # 直接使用 st.markdown 渲染，应用样式类
+
                         #st.markdown(f'<div class="fact-check-box">', unsafe_allow_html=True)
                         st.markdown(fact_check_summary)
                         st.markdown('</div>', unsafe_allow_html=True)
 
                     except Exception as e:
-                        # 降级：显示原始内容
-                        print(f"[Fact-Check] 摘要生成失败: {str(e)}")
+                        # Downgrade: Display original content
+                        print(f"[Fact-Check] Abstract generation failed: {str(e)}")
                         st.write(st.session_state.most_relevant_texts[0].page_content[:300] + "...")
             else:
                 st.info(texts['fact_check_info'])
