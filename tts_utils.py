@@ -199,13 +199,18 @@ def speak(text, voice="Cherry", timeout=10, language="English", portuguese_varia
                 print(f"[TTS] ✅ Azure European Portuguese TTS succeeded")
                 audio_id = str(uuid.uuid4())
                 audio_html = f"""
-                    <audio id="{audio_id}" autoplay>
+                    <audio id="{audio_id}" autoplay style="width:100%;">
                         <source src="data:audio/mp3;base64,{result}" type="audio/mp3">
                     </audio>
                     <script>
                         const audio = document.getElementById('{audio_id}');
                         if (audio) {{
-                            audio.play().catch(e => console.log('Playback error:', e));
+                            audio.addEventListener('canplaythrough', () => {{
+                                audio.play().catch(e => console.log('Playback error:', e));
+                            }});
+                            audio.addEventListener('error', (e) => {{
+                                console.error('Audio error:', e);
+                            }});
                         }}
                     </script>
                 """
@@ -222,13 +227,18 @@ def speak(text, voice="Cherry", timeout=10, language="English", portuguese_varia
             print(f"[TTS] ✅ OpenAI European Portuguese TTS succeeded")
             audio_id = str(uuid.uuid4())
             audio_html = f"""
-                <audio id="{audio_id}" autoplay>
+                <audio id="{audio_id}" autoplay style="width:100%;">
                     <source src="data:audio/mp3;base64,{result}" type="audio/mp3">
                 </audio>
                 <script>
                     const audio = document.getElementById('{audio_id}');
                     if (audio) {{
-                        audio.play().catch(e => console.log('Playback error:', e));
+                        audio.addEventListener('canplaythrough', () => {{
+                            audio.play().catch(e => console.log('Playback error:', e));
+                        }});
+                        audio.addEventListener('error', (e) => {{
+                            console.error('Audio error:', e);
+                        }});
                     }}
                 </script>
             """
@@ -247,13 +257,18 @@ def speak(text, voice="Cherry", timeout=10, language="English", portuguese_varia
             print(f"[TTS] ✅ Qwen TTS succeeded")
             audio_id = str(uuid.uuid4())
             audio_html = f"""
-                <audio id="{audio_id}" autoplay>
+                <audio id="{audio_id}" autoplay style="width:100%;">
                     <source src="data:audio/mp3;base64,{result}" type="audio/mp3">
                 </audio>
                 <script>
                     const audio = document.getElementById('{audio_id}');
                     if (audio) {{
-                        audio.play().catch(e => console.log('Playback error:', e));
+                        audio.addEventListener('canplaythrough', () => {{
+                            audio.play().catch(e => console.log('Playback error:', e));
+                        }});
+                        audio.addEventListener('error', (e) => {{
+                            console.error('Audio error:', e);
+                        }});
                     }}
                 </script>
             """
